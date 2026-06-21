@@ -216,3 +216,22 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Environments
+.venv/
+env/
+__pycache__/
+*.pyc
+
+# Static Type Checking cache
+.mypy_cache/
+
+# The subject forbids committing the output directory!
+data/output/
+*.output.json
+output.json
+
+# OS garbage
+.DS_Store
+
+
