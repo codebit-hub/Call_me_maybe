@@ -1,7 +1,5 @@
-import os
 import numpy as np
 from llm_sdk import Small_LLM_Model  # type: ignore[attr-defined]
-os.environ["HF_HOME"] = "/data/PROJECTS/ML03/Call_me_maybe/cache/huggingface"
 
 
 # Censor: Numpy Boolean Mask Generator.
