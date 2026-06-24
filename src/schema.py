@@ -1,4 +1,4 @@
-# Imports, validates, instantiates JSON file
+# Parser: Imports, validates, instantiates JSON file
 
 import json
 from dataclasses import dataclass

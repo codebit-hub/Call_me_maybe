@@ -5,6 +5,7 @@ description = "42 School - Introduction to function calling in LLMs"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "accelerate>=1.14.0",
     "llm-sdk",
     "numpy>=2.0.0",
     "torch>=2.4.0",
