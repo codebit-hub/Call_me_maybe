@@ -6,11 +6,13 @@ from llm_sdk import Small_LLM_Model  # type: ignore[attr-defined]
 # When the application initializes, this module will instantiate the LLM,
 # read its vocabulary size ($N = 151,936$), and decode every token ID
 # from 0 to 151,935 into text. It categorizes them into static C-level
-# boolean arrays of shape (151936,). If mask[token_id] == True,
+# boolean arrays of size (151,936). If mask[token_id] == True,
 # the LLM is permitted to speak it. If False, our state machine
-# will set its logit score to -inf.
+# will set its logit score to negative infinity -inf.
+
+
 class VocabMasks:
-    """Pre-computes, holds static C-level boolean masks for token constrains"""
+    """Pre-computes static C-level boolean masks for token constrains"""
 
     def __init__(self, llm: Small_LLM_Model, vocab_size: int = 151936) -> None:
         """Instantiates mask arrays and calls their compilation"""
@@ -18,11 +20,13 @@ class VocabMasks:
         self.vocab_size: int = vocab_size
 
         # Allocates contiguous memory tables (default False / Banned)
+        # Initiates and sets tables to 0
         self.digits: np.ndarray = np.zeros(vocab_size, dtype=bool)
         self.booleans: np.ndarray = np.zeros(vocab_size, dtype=bool)
         self.nulls: np.ndarray = np.zeros(vocab_size, dtype=bool)
 
         # Atomic structural grammar masks
+        # Initiates and sets masks to 0
         self.open_brace: np.ndarray = np.zeros(vocab_size, dtype=bool)
         self.close_brace: np.ndarray = np.zeros(vocab_size, dtype=bool)
         self.colon: np.ndarray = np.zeros(vocab_size, dtype=bool)
@@ -35,12 +39,16 @@ class VocabMasks:
         """Iterates the vocab once to populate binary truth tables"""
 
         # Contains digits and signs: +, -, e, E, float . ,
-        valid_number_chars = set("0123456789+-.eE")
+        valid_number_chars: set[str] = set("0123456789+-.eE")
 
         for token_id in range(self.vocab_size):
             try:
                 raw_str: str = llm.decode([token_id])
-                # True - legal, False - banned
+                # Retrieves and decodes every token from LLM
+                # which is passed on to validation
+                # and is stored in respective ndarrays
+                # created ndarrays match llm reponse vocab_size
+                # this enables fast biwise ndarrays matching
 
             except Exception:
                 # Skips partial byte fragments
@@ -82,7 +90,7 @@ if __name__ == "__main__":
 
     print("Initializing Small_LLM_Model on CPU...")
     t0 = time.time()
-    # print(f"t0: {t0}")
+    # t0: 1782385373.1547275 sec
 
     try:
         model = Small_LLM_Model(device="cpu")
