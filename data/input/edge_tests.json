@@ -1,0 +1,22 @@
+[
+  {
+    "prompt": "Calculate compound interest on a negative principal of -500.00 at 0.05 rate for 10 years",
+    "description": "Tests if the LLM can output the minus sign via the number mask."
+  },
+  {
+    "prompt": "Multiply 0.0000000001 and 1000000000",
+    "description": "Tests scientific notation 'e' and extreme float casting."
+  },
+  {
+    "prompt": "Execute SQL query 'SELECT * FROM users WHERE name=\"John\" AND age=30' on the test database",
+    "description": "Tests nested double quotes inside a string value."
+  },
+  {
+    "prompt": "Format template: {   \"user_id\": 123, \"action\": \"login\"   }",
+    "description": "Tests if the string parser accidentally stops when it sees curly braces meant for the template value."
+  },
+  {
+    "prompt": "Read the file at C:\\System32\\drivers\\etc\\hosts with utf-8",
+    "description": "Extreme backslash escaping test."
+  }
+]
