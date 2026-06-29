@@ -1,9 +1,13 @@
 import json
 import os
 import time
+import argparse
+from typing import Union
+
 from llm_sdk import Small_LLM_Model  # type: ignore[attr-defined]
 from src.schema import load_schema
 from src.vocab import VocabMasks
+from src.fsm_off import UnconstrainedGenerator
 from src.fsm import JSONStateMachine
 
 
@@ -12,64 +16,89 @@ def main() -> None:
     The main program
     """
 
-    # Accessing files ==================================
+    # CLI Arguments Parsing ======================================
 
-    schema_path = "data/input/functions_definition.json"
-    test_path = "data/input/function_calling_tests.json"
+    parser = argparse.ArgumentParser(
+        prog="Constrained decoder",
+        description="Constrained JSON LLM Generator")
+    parser.add_argument(
+        "--functions_definition",
+        type=str,
+        default="data/input/functions_definition.json",
+        help="Path to the JSON schema defining available functions."
+    )
+    parser.add_argument(
+        "--input",
+        type=str,
+        default="data/input/function_calling_tests.json",
+        help="Path to the JSON file containing test prompts."
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="data/output/function_calling_result.json",
+        help="Path where the final JSON results will be saved."
+    )
+    parser.add_argument(
+        "--OFF",
+        action="store_true",
+        help="Disable FSM constrained decoding and run raw LLM."
+    )
 
-    # Validates/Creates the output path
-    # makedirs creates the entire path, recurrsively
-    # if the target directory exists, exist_ok=True just
-    # quitely accepts the path.
+    # Run the parser, place extracted data in
+    # an argparse.Namespace object
 
-    output_dir = "data/output"
-    output_path = f"{output_dir}/function_calling_result.json"
-    os.makedirs(output_dir, exist_ok=True)
+    args = parser.parse_args()
 
-    # Boot Up the Environment ==========================
+    schema_path = args.functions_definition
+    test_path = args.input
+    output_path = args.output
 
+    if not os.path.exists(schema_path):
+        print(f"\n[ERROR]: Schema file not found at {schema_path}")
+        sys.exit(1)
+
+    if not os.path.exists(test_path):
+        print(f"\n[ERROR]: Test prompts file not found at {test_path}")
+        sys.exit(1)
+
+    # Validates/Creates the output path based on user input
+    output_dir = os.path.dirname(output_path)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+
+    # Boot Up the Environment =================================
     print("=== Booting Environment ===")
-
-    # Load the function definitions from JSON file to registry
 
     registry = load_schema(schema_path)
     print(f"+ Loaded {len(registry)} functions from schema.")
 
-    # Boot the LLM on the CPU
-
     model = Small_LLM_Model(device="cpu")
     print("+ LLM has been deployed.")
 
-    # Calculate the vocabulary masks
+    # Swap FSM mode based on --OFF flag
 
-    masks = VocabMasks(model)
-    print("+ Vocabulary masks have been aggrigated and set.")
-
-    # Boot up Finite State Machine (FSM) - Communicator with LLM
-
-    fsm = JSONStateMachine(model, registry, masks)
-    print("+ FSM has been deployed and is ready.")
+    generator: Union[UnconstrainedGenerator, JSONStateMachine]
+    if args.OFF:
+        print("+ FSM is OFF. Constrained decoding deactivated. Raw LLM only!")
+        generator = UnconstrainedGenerator(model, registry)
+    else:
+        masks = VocabMasks(model)
+        print("+ Vocabulary masks have been aggrigated and set.")
+        generator = JSONStateMachine(model, registry, masks)
+        print("+ FSM has been deployed and is ready.")
 
     # Load the test cases ======================================
-
     print("\n=== Processing Prompts ===")
+    print(f"+ Loading test prompts from {test_path}.")
 
-    # Loading test prompts
-
-    print("+ Loading test prompts.")
     with open(test_path, "r", encoding="utf-8") as f:
-        # json.load() reads the file into a python list
         test_cases = json.load(f)
     print(f"+ Loaded {len(test_cases)} tests to process.")
 
-    # Starting timer for test processing
     t_test_start = time.time()
-
-    # Procesing the loaded tests one by one
-    # If JSON file provides a dict, we grab "prompt"'s value.
-    # if it is a raw string, we use it directly.
-
     final_results = []
+
     for i, test in enumerate(test_cases):
         if isinstance(test, dict) and "prompt" in test:
             prompt_test = test["prompt"]
@@ -80,15 +109,15 @@ def main() -> None:
         else:
             prompt_test = str(test)
             test_id = f"test_{i}"
+
         print(f"\n[{i + 1}/{len(test_cases)}] Processing: '{prompt_test}'")
 
-        # Starting the timer
         t0 = time.time()
-        generated_call = fsm.generate_call(prompt_test)
+        # generator points to either JSONStateMachine
+        # or UnconstrainedGenerator
+        generated_call = generator.generate_call(prompt_test)
         dt = time.time() - t0
         print(f"Completed in {dt:.2f} sec")
-
-        # Save the results in the correct output format
 
         final_results.append({
             "id": test_id,
@@ -96,20 +125,16 @@ def main() -> None:
             "result": generated_call
         })
 
-    # Exporting the final results
-
+    # Exporting the final results ==============================
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(final_results, f, indent=2)
 
     print("\n=== Exporting Results ===")
-    print(
-        "[SUCCESS]: All results are safely written to: \n"
-        f"{output_path}.")
-    print(f"Review the output JSON file in {output_dir}.")
+    print(f"[SUCCESS]: All results are safely written to: \n{output_path}.")
 
-    # Stopping timer for test processing
     t_test_completed = time.time() - t_test_start
-    print(f"Test prompts processed in {t_test_completed:.2f} sec.")
+    print(f"\nTest prompts processed in {t_test_completed:.2f} sec. or "
+          f"{(t_test_completed / 60):.2f} min.")
 
 
 if __name__ == "__main__":

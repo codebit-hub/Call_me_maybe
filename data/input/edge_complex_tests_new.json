@@ -1,0 +1,18 @@
+[
+  {
+    "prompt": "Calculate the product of 0.0000000005 and 80000000000",
+    "description": "Tests scientific notation 'e' and extreme float casting."
+  },
+  {
+    "prompt": "Run the following SQL query on the production database: 'DELETE FROM records WHERE status=\"expired\" AND user=\"Alice\"'",
+    "description": "Tests nested double quotes inside a string value."
+  },
+  {
+    "prompt": "Process the configuration payload: { \"theme\": \"dark\", \"notifications\": true }",
+    "description": "Tests if the string parser accidentally stops when it sees curly braces meant for the template value."
+  },
+  {
+    "prompt": "Open the log file located at D:\\Server\\Logs\\2026\\error_log.txt using ascii encoding",
+    "description": "Extreme backslash escaping test."
+  }
+]

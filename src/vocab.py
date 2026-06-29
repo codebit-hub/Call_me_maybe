@@ -50,7 +50,8 @@ class VocabMasks:
                 # created ndarrays match llm reponse vocab_size
                 # this enables fast biwise ndarrays matching
 
-            except Exception:
+            except (ValueError, UnicodeDecodeError):
+                # This captures only relevant errors
                 # Skips partial byte fragments
                 continue
 

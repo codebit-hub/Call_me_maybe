@@ -1,0 +1,30 @@
+[
+  {
+    "id": "edge_01_empty",
+    "prompt": "Read the file at '' with '' encoding"
+  },
+  {
+    "id": "edge_02_large_numbers",
+    "prompt": "Multiply 999999999999999999999999 and 8888888888888888888888"
+  },
+  {
+    "id": "edge_03_special_chars",
+    "prompt": "Format template: @#$$%^&*()_+{}|:<>?"
+  },
+  {
+    "id": "edge_04_wrong_types_ambiguous",
+    "prompt": "Calculate compound interest on a principal of 'one million' at 'five percent' for 'ten' years"
+  },
+  {
+    "id": "edge_05_multi_param_malicious",
+    "prompt": "Execute SQL query 'DROP TABLE users; -- ' on the backup database"
+  },
+  {
+    "id": "edge_06_absolute_silence",
+    "prompt": ""
+  },
+  {
+    "id": "edge_07_nested_JSON",
+    "prompt": "Format template: {\"config\": {\"retry\": true, \"count\": 5}}"
+  }
+]
