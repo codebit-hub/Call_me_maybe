@@ -1,0 +1,23 @@
+[
+  {
+    "id": "test_0",
+    "prompt": "What is the sum of 2 and 3?",
+    "result": {
+      "result": "5"
+    }
+  },
+  {
+    "id": "test_1",
+    "prompt": "What is the sum of 265 and 345?",
+    "result": {
+      "result": "271"
+    }
+  },
+  {
+    "id": "test_2",
+    "prompt": "Greet shrek",
+    "result": {
+      "greet_response": "Hello, Shrek!"
+    }
+  }
+]

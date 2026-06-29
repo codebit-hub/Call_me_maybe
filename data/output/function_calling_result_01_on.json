@@ -1,0 +1,120 @@
+[
+  {
+    "id": "test_0",
+    "prompt": "What is the sum of 2 and 3?",
+    "result": {
+      "function": "fn_add_numbers",
+      "arguments": {
+        "a": 2,
+        "b": 3
+      }
+    }
+  },
+  {
+    "id": "test_1",
+    "prompt": "What is the sum of 265 and 345?",
+    "result": {
+      "function": "fn_add_numbers",
+      "arguments": {
+        "a": 265,
+        "b": 345
+      }
+    }
+  },
+  {
+    "id": "test_2",
+    "prompt": "Greet shrek",
+    "result": {
+      "function": "fn_greet",
+      "arguments": {
+        "name": "shrek"
+      }
+    }
+  },
+  {
+    "id": "test_3",
+    "prompt": "Greet john",
+    "result": {
+      "function": "fn_greet",
+      "arguments": {
+        "name": "john"
+      }
+    }
+  },
+  {
+    "id": "test_4",
+    "prompt": "Reverse the string 'hello'",
+    "result": {
+      "function": "fn_reverse_string",
+      "arguments": {
+        "s": "hello"
+      }
+    }
+  },
+  {
+    "id": "test_5",
+    "prompt": "Reverse the string 'world'",
+    "result": {
+      "function": "fn_reverse_string",
+      "arguments": {
+        "s": "world"
+      }
+    }
+  },
+  {
+    "id": "test_6",
+    "prompt": "What is the square root of 16?",
+    "result": {
+      "function": "fn_get_square_root",
+      "arguments": {
+        "a": 16
+      }
+    }
+  },
+  {
+    "id": "test_7",
+    "prompt": "Calculate the square root of 144",
+    "result": {
+      "function": "fn_get_square_root",
+      "arguments": {
+        "a": 144
+      }
+    }
+  },
+  {
+    "id": "test_8",
+    "prompt": "Replace all numbers in \"Hello 34 I'm 233 years old\" with NUMBERS",
+    "result": {
+      "function": "fn_substitute_string_with_regex",
+      "arguments": {
+        "source_string": "Hello 34 I'm 233 years old",
+        "regex": "([0-9]+)",
+        "replacement": "NUMBERS"
+      }
+    }
+  },
+  {
+    "id": "test_9",
+    "prompt": "Replace all vowels in 'Programming is fun' with asterisks",
+    "result": {
+      "function": "fn_substitute_string_with_regex",
+      "arguments": {
+        "source_string": "Programming is fun",
+        "regex": ".*[aeiouAEIOU].*",
+        "replacement": "*****"
+      }
+    }
+  },
+  {
+    "id": "test_10",
+    "prompt": "Substitute the word 'cat' with 'dog' in 'The cat sat on the mat with another cat'",
+    "result": {
+      "function": "fn_substitute_string_with_regex",
+      "arguments": {
+        "source_string": "The cat sat on the mat with another cat",
+        "regex": "dog",
+        "replacement": "dog"
+      }
+    }
+  }
+]

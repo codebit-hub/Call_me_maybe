@@ -1,0 +1,86 @@
+[
+  {
+    "id": "test_0",
+    "prompt": "What is the sum of 2 and 3?",
+    "result": {
+      "result": "5"
+    }
+  },
+  {
+    "id": "test_1",
+    "prompt": "What is the sum of 265 and 345?",
+    "result": {
+      "result": "271"
+    }
+  },
+  {
+    "id": "test_2",
+    "prompt": "Greet shrek",
+    "result": {
+      "greet_response": "Hello, Shrek!"
+    }
+  },
+  {
+    "id": "test_3",
+    "prompt": "Greet john",
+    "result": {
+      "greet": "Hello, John!"
+    }
+  },
+  {
+    "id": "test_4",
+    "prompt": "Reverse the string 'hello'",
+    "result": {
+      "result": "olleh"
+    }
+  },
+  {
+    "id": "test_5",
+    "prompt": "Reverse the string 'world'",
+    "result": {
+      "result": "drow olw"
+    }
+  },
+  {
+    "id": "test_6",
+    "prompt": "What is the square root of 16?",
+    "result": {
+      "result": 4
+    }
+  },
+  {
+    "id": "test_7",
+    "prompt": "Calculate the square root of 144",
+    "result": {
+      "result": 12,
+      "error": "None"
+    }
+  },
+  {
+    "id": "test_8",
+    "prompt": "Replace all numbers in \"Hello 34 I'm 233 years old\" with NUMBERS",
+    "result": {
+      "fn_name": "fn_substitute_string_with_regex",
+      "arguments": {
+        "source_string": "Hello 34 I'm 233 years old",
+        "regex": "([0-9]+)",
+        "replacement": "NUMBERS"
+      }
+    }
+  },
+  {
+    "id": "test_9",
+    "prompt": "Replace all vowels in 'Programming is fun' with asterisks",
+    "result": {
+      "result": "****Programming is fun"
+    }
+  },
+  {
+    "id": "test_10",
+    "prompt": "Substitute the word 'cat' with 'dog' in 'The cat sat on the mat with another cat'",
+    "result": {
+      "result": "dog",
+      "error": null
+    }
+  }
+]
