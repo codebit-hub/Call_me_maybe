@@ -108,10 +108,14 @@ if __name__ == "__main__":
         compile_time = time.time() - t1
 
         print(f"[SUCCESS]: Processed 151,936 tokens in {compile_time:.2f}s.\n")
-        print(f" ├─ Valid Numeric Tokens:    {np.sum(masks.digits)}")
-        print(f" ├─ Valid Boolean Tokens:    {np.sum(masks.booleans)}")
+        print(f" ├─ Valid Numeric Tokens: {np.sum(masks.digits)}")
+        print(f" ├─ Valid Boolean Tokens: {np.sum(masks.booleans)}")
+        print(f" ├─ Null Tokens: {np.sum(masks.nulls)}")
         print(f" ├─ Open Brace ('{{') Tokens: {np.sum(masks.open_brace)}")
-        print(f" └─ Quote ('\"') Tokens:      {np.sum(masks.quote)}")
+        print(f" ├─ Close Brace ('}}') Tokens: {np.sum(masks.close_brace)}")
+        print(f" ├─ Colon (':') Tokens: {np.sum(masks.colon)}")
+        print(f" ├─ Comma (',') Tokens: {np.sum(masks.comma)}")
+        print(f" └─ Quote ('\"') Tokens: {np.sum(masks.quote)}")
 
     except Exception as err:
         print(f"\n[FATAL ERROR] Vocabulary compilation failed: {err}")

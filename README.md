@@ -148,6 +148,84 @@ data/output/function_calling_result.json.
 Test prompts processed in 63.83 sec. or 1.06 min.
 ```
 
+### Partial Tests of Each Module
+Each individual module is provided with a separate main() function that can test its operation.
+
+Testing parsing of the function definition JSON file:
+
+```bash
+uv run python -m src.schema
+```
+
+Testing creation of fast masking NumPy ndarrays:
+
+```bash
+uv run python -m src.vocab
+```
+
+Testing operation of the Finite State Machine:
+
+```bash
+uv run python -m src.fsm
+```
+
+### Expected Output of Partial Module Tests
+```bash
+uv run python -m src.schema
+Attempting to ingest schema from: data/input/functions_definition.json...
+[SUCCESS]: Indexed 11 functions.
+
+--fn_add_numbers (2 params)
+    --a: <number>
+    --b: <number>
+--fn_greet (1 params)
+    --name: <string>
+--fn_reverse_string (1 params)
+    --s: <string>
+--fn_get_square_root (1 params)
+    --a: <number>
+--fn_substitute_string_with_regex (3 params)
+    --source_string: <string>
+    --regex: <string>
+    --replacement: <string>
+--fn_multiply_numbers (2 params)
+    --a: <number>
+    --b: <number>
+--fn_is_even (1 params)
+    --n: <integer>
+--fn_calculate_compound_interest (3 params)
+    --principal: <number>
+    --rate: <number>
+    --years: <integer>
+--fn_execute_sql_query (2 params)
+    --query: <string>
+    --database: <string>
+--fn_read_file (2 params)
+    --path: <string>
+    --encoding: <string>
+--fn_format_template (1 params)
+    --template: <string>
+```
+
+```bash
+uv run python -m src.vocab
+Initializing Small_LLM_Model on CPU...
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights: 100%|██████████████████| 311/311 [00:00<00:00, 926.84it/s]
+Model bound to HW in 2.37 seconds.
+Compiling vocab truth tables...
+[SUCCESS]: Processed 151,936 tokens in 0.40s.
+
+ ├─ Valid Numeric Tokens: 222
+ ├─ Valid Boolean Tokens: 6
+ ├─ Null Tokens: 3
+ ├─ Open Brace ('{') Tokens: 15
+ ├─ Close Brace ('}') Tokens: 24
+ ├─ Colon (':') Tokens: 13
+ ├─ Comma (',') Tokens: 11
+ └─ Quote ('"') Tokens: 12
+```
+
 ## Algorithm Explanation
 
 The core logic resides in `src/fsm.py` and `src/vocab.py`.
