@@ -7,7 +7,7 @@ from src.vocab import VocabMasks
 
 
 class JSONStateMachine:
-    """Executes deterministic JSON structure with logit injection."""
+    """Executes deterministic JSON scaffolding with logit injection."""
 
     def __init__(
         self,
@@ -38,71 +38,74 @@ class JSONStateMachine:
         return [int(x) for x in data]
 
     def _select_function(self, prompt: str) -> FunctionSpec:
-        """Generates function name in the JSON structure"""
-
-        possible_functions: list[str] = list(self.registry.keys())
-
-        name_to_tokens_map: dict[str, list[int]] = {}
-        for func_name in possible_functions:
-            name_to_tokens_map[func_name] = self._normalize_to_list(func_name)
+        candidates: list[str] = list(self.registry.keys())
+        cand_tokens: dict[str, list[int]] = {}
+        for func_name in candidates:
+            cand_tokens[func_name] = self._normalize_to_list(func_name)
 
         menu_text = ""
         for name, spec in self.registry.items():
             menu_text += f"- {name}: {spec.description}\n"
 
-        prompt_text = (
-            "Analyze the request and select the matching function name.\n\n"
-            "AVAILABLE FUNCTIONS:\n"
+        # Splitting the backticks ensures the UI markdown parser doesn't break
+        context = (
+            f"Available Functions:\n"
             f"{menu_text}\n"
             f"Request: {prompt}\n"
-            "``" + '`json\n{"name": "'
+            "``" + "`json\n{\"name\": \""
         )
-        prompt_tokens = self._normalize_to_list(prompt_text)
 
-        generated_tokens: list[int] = []
-        current_token_index = 0
+        base_ids: list[int] = self._normalize_to_list(context)
+        current_seq: list[int] = []
+        depth = 0
 
-        while len(possible_functions) > 1 and current_token_index < 10:
-            legal_next_tokens: set[int] = set()
-            for func_name in possible_functions:
-                tokens = name_to_tokens_map[func_name]
-                if current_token_index < len(tokens):
-                    legal_next_tokens.add(tokens[current_token_index])
+        # Increased depth cap to 20 to accommodate very long function names
+        while len(candidates) > 1 and depth < 20:
+            # Improved Pythonic set comprehension for allowed tokens
+            allowed_toks: set[int] = {
+                cand_tokens[name][depth]
+                for name in candidates
+                if depth < len(cand_tokens[name])
+            }
 
-            current_context = prompt_tokens + generated_tokens
-            raw_logits = self.llm.get_logits_from_input_ids(current_context)
+            raw_logits = self.llm.get_logits_from_input_ids(
+                base_ids + current_seq
+            )
+            # Ensure it is explicitly a NumPy array
+            # to prevent PyTorch indexing errors
             logits = np.array(raw_logits)
 
             mask = np.zeros(self.masks.vocab_size, dtype=bool)
-            for valid_id in legal_next_tokens:
-                mask[valid_id] = True
+
+            for tid in allowed_toks:
+                mask[tid] = True
 
             logits[~mask] = -np.inf
+            winning_id = int(np.argmax(logits))
 
-            winning_token = int(np.argmax(logits))
-            generated_tokens.append(winning_token)
-            current_token_index += 1
+            current_seq.append(winning_id)
+            depth += 1
 
-            surviving_functions = []
-            for func_name in possible_functions:
-                tokens = name_to_tokens_map[func_name]
-                if current_token_index <= len(tokens):
-                    if tokens[current_token_index - 1] == winning_token:
-                        surviving_functions.append(func_name)
+            candidates = [
+                name
+                for name in candidates
+                if depth <= len(cand_tokens[name])
+                and cand_tokens[name][depth - 1] == winning_id
+            ]
 
-            possible_functions = surviving_functions
+        if candidates:
+            chosen_name = candidates[0]
+        else:
+            chosen_name = list(self.registry.keys())[0]
 
-        if not possible_functions:
-            possible_functions = list(self.registry.keys())
-        return self.registry[possible_functions[0]]
+        return self.registry[chosen_name]
 
     def _cast_number(self, val_str: str, expected_type: str) -> float | int:
+        """Safely coerces a generated numeric string into a Python scalar."""
         clean = val_str.strip()
         try:
             if expected_type == "number":
                 return float(clean)
-            # Safe fallback for "integer"
-            # in case LLM outputs something like "2.0"
             return int(float(clean))
         except ValueError:
             return 0.0 if expected_type == "number" else 0
@@ -114,9 +117,11 @@ class JSONStateMachine:
         arg_name: str,
         resolved_args: dict[str, Any],
     ) -> Any:
-        args_so_far_str = json.dumps(resolved_args)[:-1]
+        """Generates an argument value constrained by its Pydantic schema."""
+        # 1. Build the exact JSON scaffolding leading up to this parameter
+        args_json_partial = json.dumps(resolved_args)[:-1]
         if resolved_args:
-            args_so_far_str += ", "
+            args_json_partial += ", "
 
         expected_type = func_spec.parameters[arg_name].type
 
@@ -125,57 +130,27 @@ class JSONStateMachine:
         else:
             prefix = f'"{arg_name}": '
 
-        # Highly aggressive Few-Shot rules to override the model's biases
-        if expected_type in ("number", "integer"):
-            max_tokens = 30
-            instruction = (
-                f"Find the exact numerical value for '{arg_name}'.\n"
-                "CRITICAL RULES:\n"
-                "1. Do NOT calculate. Extract the literal digits.\n"
-                "2. Include minus signs perfectly "
-                "(e.g., if -500.00, output -500.00).\n"
-                "3. Include exact decimals perfectly "
-                "(e.g., if 0.0000000001, output 0.0000000001)."
-            )
-        elif expected_type == "boolean":
-            max_tokens = 10
-            instruction = (
-                f"Find the boolean value for '{arg_name}' "
-                "(true or false)."
-            )
-        else:
-            max_tokens = 120
-            instruction = (
-                f"Extract the exact text for '{arg_name}'.\n"
-                "CRITICAL RULES:\n"
-                "1. If text contains internal quotes (\"), "
-                "you MUST escape them as \\\".\n"
-                "2. Do NOT invent regex. Extract the simple, "
-                "literal target word (e.g., cat).\n"
-                "3. Do NOT change capitalization. Copy exact casing.\n"
-                "4. Preserve all {curly braces}, SQL syntax, "
-                "and formatting perfectly."
-            )
-
-        # Changed "function" to "name" and "arguments" to "parameters"
-        mold_text = (
-            f"User Request: {prompt}\n"
-            "-----------------\n"
-            f"Task: {instruction}\n"
-            "-----------------\n"
-            "Output JSON:\n"
-            "``" + f'`json\n{{"name": "{func_spec.name}", '
-            f'"parameters": {args_so_far_str}{prefix}'
+        # Retained optimized Zero-Shot prompt to prevent attention dilution
+        context = (
+            f"User request: {prompt}\n"
+            f"Target JSON:\n"
+            "``" + f"`json\n{{\"name\": \"{func_spec.name}\", "
+            f"\"parameters\": {args_json_partial}{prefix}"
         )
 
-        context_tokens = self._normalize_to_list(mold_text)
-        generated_value_tokens: list[int] = []
+        context_ids: list[int] = self._normalize_to_list(context)
+        val_toks: list[int] = []
 
-        for _ in range(max_tokens):
-            current_context = context_tokens + generated_value_tokens
-            raw_logits = self.llm.get_logits_from_input_ids(current_context)
+        for _ in range(30):  # Token generation safety cap per argument
+            raw_logits = self.llm.get_logits_from_input_ids(
+                context_ids + val_toks
+            )
+            # Ensure it is explicitly a NumPy array
+            # to prevent PyTorch indexing errors
             logits = np.array(raw_logits)
 
+            # Apply strict type masking
+            # while explicitly allowing closure tokens
             if expected_type in ("number", "integer"):
                 mask = (
                     self.masks.digits
@@ -183,7 +158,6 @@ class JSONStateMachine:
                     | self.masks.close_brace
                 )
                 logits[~mask] = -np.inf
-
             elif expected_type == "boolean":
                 mask = (
                     self.masks.booleans
@@ -192,73 +166,70 @@ class JSONStateMachine:
                 )
                 logits[~mask] = -np.inf
 
-            winning_token = int(np.argmax(logits))
-            generated_value_tokens.append(winning_token)
+            winning_id = int(np.argmax(logits))
 
+            # Check for natural grammar termination delimiters
             if expected_type == "string":
-                current_text = self.llm.decode(generated_value_tokens)
-
-                clean_text = current_text.replace(
+                # Handle internal escapes for strings
+                raw_text = self.llm.decode(val_toks + [winning_id])
+                clean_text = raw_text.replace(
                     '\\\\', '__'
                 ).replace('\\"', '__')
-
                 if '"' in clean_text:
+                    val_toks.append(winning_id)
                     break
             else:
-                is_comma = self.masks.comma[winning_token]
-                is_brace = self.masks.close_brace[winning_token]
-                if winning_token != 0 and (is_comma or is_brace):
+                if winning_id != 0 and (
+                    self.masks.comma[winning_id]
+                    or self.masks.close_brace[winning_id]
+                ):
+                    val_toks.append(winning_id)
                     break
 
-        raw_string_value = self.llm.decode(generated_value_tokens).strip()
+            val_toks.append(winning_id)
+
+        raw_val_str = self.llm.decode(val_toks).strip()
 
         if expected_type in ("number", "integer"):
-            clean_num = raw_string_value.rstrip(",}")
+            clean_num = raw_val_str.rstrip(",}")
             return self._cast_number(clean_num, expected_type)
 
         elif expected_type == "boolean":
-            clean_bool = raw_string_value.rstrip(",}").strip().lower()
+            clean_bool = raw_val_str.rstrip(",}").strip().lower()
             return clean_bool == "true"
 
         elif expected_type == "string":
             extracted = ""
             i = 0
-            while i < len(raw_string_value):
-                if (
-                    raw_string_value[i] == '\\'
-                    and i + 1 < len(raw_string_value)
-                ):
-                    extracted += raw_string_value[i:i+2]
+            while i < len(raw_val_str):
+                if raw_val_str[i] == '\\' and i + 1 < len(raw_val_str):
+                    extracted += raw_val_str[i:i+2]
                     i += 2
-                elif raw_string_value[i] == '"':
+                elif raw_val_str[i] == '"':
                     break
                 else:
-                    extracted += raw_string_value[i]
+                    extracted += raw_val_str[i]
                     i += 1
-
             try:
                 return json.loads(f'"{extracted}"')
             except Exception:
                 return extracted.replace('\\"', '"').replace('\\\\', '\\')
 
-        return raw_string_value
+        return raw_val_str
 
     def generate_call(self, prompt: str) -> dict[str, Any]:
-        """Generates the fucntion and returns name and params"""
-
+        """Executes the complete FSM pipeline for a user prompt."""
+        # Station 1: Resolve Target Function
         spec = self._select_function(prompt)
-        args_accumulator: dict[str, Any] = {}
 
+        # Station 2 & 3: Mold and Inject Arguments
+        args_accumulator: dict[str, Any] = {}
         for arg_name in spec.parameters.keys():
             val = self._generate_arg_value(
-                prompt,
-                spec,
-                arg_name,
-                args_accumulator
+                prompt, spec, arg_name, args_accumulator
             )
             args_accumulator[arg_name] = val
 
-        # Updated to strict schema compliant keys
         return {
             "name": spec.name,
             "parameters": args_accumulator,
@@ -270,16 +241,14 @@ if __name__ == "__main__":
     import time
 
     schema_path = "data/input/functions_definition.json"
-    test_prompt = (
-        "Calculate compound interest on a negative principal "
-        "of -500.00 at 0.05 rate for 10 years"
-    )
+    test_prompt = "What is the sum of 265 and 345?"
 
-    print("Booting Finite State Machine (FSM) Environment...")
+    print("Booting FSM Environment...")
     try:
         registry = load_schema(schema_path)
         model = Small_LLM_Model(device="cpu")
         masks = VocabMasks(model)
+
         fsm = JSONStateMachine(model, registry, masks)
 
         print(f"\n[RUNNING PROMPT]: '{test_prompt}'")
@@ -288,7 +257,7 @@ if __name__ == "__main__":
         dt = time.time() - t0
 
         print(f"[SUCCESS]: Call assembled in {dt:.2f} seconds.\n")
-        print(json.dumps(final_call, indent=4))
+        print(json.dumps(final_call, indent=2))
 
     except Exception as err:
         print(f"\n[FATAL ERROR]: {err}")
