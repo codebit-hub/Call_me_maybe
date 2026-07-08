@@ -227,11 +227,9 @@ __pycache__/
 .mypy_cache/
 
 # The subject forbids committing the output directory!
-# data/output/
-# *.output.json
-# output.json
+data/output/
+*.output.json
+output.json
 
 # OS garbage
 .DS_Store
-
-

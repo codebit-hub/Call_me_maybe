@@ -25,7 +25,7 @@ run:
 .PHONY: run_off
 run_off:
 	@echo "Running Unconstrained Decoding Agent (FSM OFF)..."
-	$(PYTHON) -m $(SRC_DIR) --OFF
+	$(PYTHON) -m $(SRC_DIR) --off
 
 # Validation Rules
 

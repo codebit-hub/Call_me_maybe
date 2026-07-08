@@ -15,31 +15,136 @@ Our solution enforces **deterministic structure** via two techniques:
 
 ### Installation & Setup
 
-This project uses `uv` for dependency management. To set up the environment, ensure you have `uv` installed, then run:
+The operation of the agent requires at least 4 GB of storage for caching files: PyTorch (~2.4GB), the Hugging Face Hub cache (~1.5GB for Qwen3-0.6B), and the compiled wheel caches defaults to ~/.cache/ located on the root drive.
+If your current root directory is large enouph you can proceed simply by executing 'make run'.
+Otherwise, customize the directory for storing the cache files, as follows:
 
+In the parent directory, create another directory called Cache for storing cache files, as follows:
+  cache
+    huggingface
+    uv
+    pip
+
+Provide the following entries at the very bottom of the shell configuration files, as follows:
+Open the configuration files:
+
+```bash
+vim ~/.zshrc
 ```
-uv sync --group dev
+or
+```bash
+vim ~/.bashrc
+```
 
+At the bottom provide this text:
+```
+export HF_HOME="/path_to_your_project/Call_me_maybe/cache/huggingface"
+export UV_CACHE_DIR="/path_to_your_project/Call_me_maybe/cache/uv"
+export PIP_CACHE_DIR="path_to_your_project/Call_me_maybe/cache/pip"
+```
+
+After that run:
+
+```bash
+source ~/.bashrc
+```
+or
+```bash
+source ~/.zshrc
 ```
 
 ### Execution
 
 To run the agent with the Finite State Machine (FSM) enabled (default):
 
-```
-make
+```bash
+make run
 # OR
 uv run python -m src
 
 ```
 
-To run the agent with the **--OFF** flag (disables constraints and relies on raw LLM output):
+To run the agent with the **--off** flag (disables constraints and relies on raw LLM output):
 
-```
+```bash
 make run_off
 # OR
-uv run python -m src --OFF
+uv run python -m src --off
 
+```
+
+By default, the agent will process the predefined input file located at data/input/functions_calling_tests.json and output it into data/output/function_calling_result.json.
+To run the agent with another files, run the program as follows:
+uv run python -m src [-functions_definition <function_definition_file>]
+[-input <input_file>] [-output <output_file>]
+```dash
+uv run python -m src --functions_definition data/input/functions_definition.json --input data/input/function_calling_tests_easy.json --output data/output/my_function_calling_result.json
+```
+
+### Expected Output (regular run)
+```bash
+make run
+Running Constrained Decoding Agent (FSM ON)...
+uv run python -m src
+      Built llm-sdk @ file:///the path to your project directory/llm_sdk
+Installed 60 packages in 11.59s
+=== Booting Environment ===
++ Loaded 11 functions from schema.
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+config.json: 100%|████████████████████████████████████████████████████| 726/726 [00:00<00:00, 1.56MB/s]
+tokenizer_config.json: 100%|██████████████████████████████████████| 9.73k/9.73k [00:00<00:00, 9.74MB/s]
+vocab.json: 100%|█████████████████████████████████████████████████| 2.78M/2.78M [00:00<00:00, 20.0MB/s]
+merges.txt: 100%|█████████████████████████████████████████████████| 1.67M/1.67M [00:00<00:00, 72.2MB/s]
+tokenizer.json: 100%|█████████████████████████████████████████████| 11.4M/11.4M [00:01<00:00, 8.92MB/s]
+model.safetensors: 100%|██████████████████████████████████████████| 1.50G/1.50G [01:28<00:00, 16.9MB/s]
+Loading weights: 100%|███████████████████████████████████████████████| 311/311 [00:13<00:00, 23.81it/s]
+generation_config.json: 100%|██████████████████████████████████████████| 239/239 [00:00<00:00, 550kB/s]
++ LLM has been deployed.
++ Vocabulary masks have been aggrigated and set.
++ FSM has been deployed and is ready.
+
+=== Processing Prompts ===
++ Loading test prompts from data/input/function_calling_tests.json.
++ Loaded 11 tests to process.
+
+[1/11] Processing: 'What is the sum of 2 and 3?'
+Completed in 3.80 sec
+
+[2/11] Processing: 'What is the sum of 265 and 345?'
+Completed in 5.95 sec
+
+[3/11] Processing: 'Greet shrek'
+Completed in 3.12 sec
+
+[4/11] Processing: 'Greet john'
+Completed in 2.73 sec
+
+[5/11] Processing: 'Reverse the string 'hello''
+Completed in 2.64 sec
+
+[6/11] Processing: 'Reverse the string 'world''
+Completed in 2.80 sec
+
+[7/11] Processing: 'What is the square root of 16?'
+Completed in 3.40 sec
+
+[8/11] Processing: 'Calculate the square root of 144'
+Completed in 3.95 sec
+
+[9/11] Processing: 'Replace all numbers in "Hello 34 I'm 233 years old" with NUMBERS'
+Completed in 15.15 sec
+
+[10/11] Processing: 'Replace all vowels in 'Programming is fun' with asterisks'
+Completed in 10.44 sec
+
+[11/11] Processing: 'Substitute the word 'cat' with 'dog' in 'The cat sat on the mat with another cat''
+Completed in 9.82 sec
+
+=== Exporting Results ===
+[SUCCESS]: All results are safely written to:
+data/output/function_calling_result.json.
+
+Test prompts processed in 63.83 sec. or 1.06 min.
 ```
 
 ## Algorithm Explanation
@@ -78,18 +183,21 @@ We utilized two JSON-based test suites:
 
 ## Example Usage
 
-**Request:** *"Calculate compound interest on a negative principal of -500.00 at 0.05 rate for 10 years"*
+**Request:** *"What is the sum of 2 and 3?"*
 **Output:**
 
 ```json
 {
-  "function": "calculate_interest",
-  "arguments": {
-    "principal": -500.00,
-    "rate": 0.05,
-    "years": 10
+    "id": "test_0",
+    "prompt": "What is the sum of 2 and 3?",
+    "result": {
+      "function": "fn_add_numbers",
+      "arguments": {
+        "a": 2,
+        "b": 3
+      }
+    }
   }
-}
 
 ```
 

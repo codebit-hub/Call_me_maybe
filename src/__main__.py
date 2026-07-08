@@ -22,25 +22,25 @@ def main() -> None:
         prog="Constrained decoder",
         description="Constrained JSON LLM Generator")
     parser.add_argument(
-        "--functions_definition",
+        "-functions_definition", "--functions_definition",
         type=str,
         default="data/input/functions_definition.json",
         help="Path to the JSON schema defining available functions."
     )
     parser.add_argument(
-        "--input",
+        "-input", "--input",
         type=str,
         default="data/input/function_calling_tests.json",
         help="Path to the JSON file containing test prompts."
     )
     parser.add_argument(
-        "--output",
+        "-output", "--output",
         type=str,
         default="data/output/function_calling_result.json",
         help="Path where the final JSON results will be saved."
     )
     parser.add_argument(
-        "--OFF",
+        "-off", "--off",
         action="store_true",
         help="Disable FSM constrained decoding and run raw LLM."
     )
@@ -79,7 +79,7 @@ def main() -> None:
     # Swap FSM mode based on --OFF flag
 
     generator: Union[UnconstrainedGenerator, JSONStateMachine]
-    if args.OFF:
+    if args.off:
         print("+ FSM is OFF. Constrained decoding deactivated. Raw LLM only!")
         generator = UnconstrainedGenerator(model, registry)
     else:
