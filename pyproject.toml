@@ -5,11 +5,9 @@ description = "42 School - Introduction to function calling in LLMs"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "accelerate>=1.14.0",
     "llm-sdk",
     "numpy>=2.0.0",
-    "pydantic>=2.13.4",
-    "torch>=2.4.0",
+    "pydantic>=2.13.4"
 ]
 
 [tool.uv.sources]
