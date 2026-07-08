@@ -1,6 +1,7 @@
 # Constrained Decoding Agent
 
 NAME	= constrained_decoder
+SHELL	= /bin/bash
 
 # Toolchain
 PYTHON	= uv run python
@@ -15,17 +16,36 @@ DATA_DIR	= data
 .PHONY: all
 all: run
 
+# Installation Rules
+
+.PHONY: install
+install:
+	@if [[ ! -f .install_stamp || pyproject.toml -nt .install_stamp ]]; then \
+		echo "Installing project dependencies using uv..."; \
+		uv sync --all-groups; \
+		touch .install_stamp; \
+	else \
+		echo "Nothing to do: everything is already setup."; \
+	fi
+
 # Execution Rules
 
 .PHONY: run
-run:
+run: install
 	@echo "Running Constrained Decoding Agent (FSM ON)..."
 	$(PYTHON) -m $(SRC_DIR)
 
 .PHONY: run_off
-run_off:
+run_off: install
 	@echo "Running Unconstrained Decoding Agent (FSM OFF)..."
 	$(PYTHON) -m $(SRC_DIR) --off
+
+# Debugging Mode
+
+.PHONY: debug
+debug: install
+	@echo "Running Constrained Decoding Agent in Debug Mode..."
+	$(PYTHON) -m pdb -m $(SRC_DIR)
 
 # Validation Rules
 
@@ -33,6 +53,7 @@ run_off:
 lint:
 	@echo "Running Flake8 (Formatting)..."
 	$(FLAKE8) $(SRC_DIR)
+	@echo "Flake8 check completed."
 	@echo "Running MyPy (Static Type Checking)..."
 	$(MYPY) $(SRC_DIR) \
 		--warn-return-any \
@@ -40,6 +61,14 @@ lint:
 		--ignore-missing-imports \
 		--disallow-untyped-defs \
 		--check-untyped-defs
+
+.PHONY: lint-strict
+lint-strict:
+	@echo "Running Flake8 (Formatting)..."
+	$(FLAKE8) $(SRC_DIR)
+	@echo "Flake8 check completed."
+	@echo "Running MyPy (Strict Static Type Checking)..."
+	$(MYPY) $(SRC_DIR) --strict
 
 # Cleanup Rules
 
@@ -55,6 +84,7 @@ clean:
 fclean: clean
 	@echo "Performing deep clean..."
 	rm -rf .venv
+	rm -f .install_stamp
 
 .PHONY: re
 re: fclean all
