@@ -56,7 +56,8 @@ class UnconstrainedGenerator:
                 menu_text += f"    - {param_name} ({param_spec.type})\n"
 
         # Ask the LLM to write its output in a JSON file on its own.
-        # Modified prompt to explicitly demand "name" and "parameters" keys.
+        # Added strict instructions for EXACT keys required by subject.
+
         system_prompt = (
             "You are an API function calling agent.\n"
             "AVAILABLE FUNCTIONS:\n"
@@ -117,7 +118,7 @@ class UnconstrainedGenerator:
 
         except json.JSONDecodeError:
             # if it failed to generate valid JSON, return raw hallucination
-            # Ensure it still follows the schema shape even on error
+            # Ensure it STILL conforms to the 'name' and 'parameters' structure
             return {
                 "name": "error_parsing_failed",
                 "parameters": {
