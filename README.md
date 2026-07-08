@@ -74,9 +74,10 @@ uv run python -m src --off
 ```
 
 By default, the agent will process the predefined input file located at data/input/functions_calling_tests.json and output it into data/output/function_calling_result.json.
-To run the agent with another files, run the program as follows:
+To run the agent with another files, for example, run the program with the following syntax as follows:
 uv run python -m src [-functions_definition <function_definition_file>]
 [-input <input_file>] [-output <output_file>]
+
 ```dash
 uv run python -m src --functions_definition data/input/functions_definition.json --input data/input/function_calling_tests_easy.json --output data/output/my_function_calling_result.json
 ```
