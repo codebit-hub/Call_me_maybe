@@ -1,14 +1,13 @@
 import json
 from typing import Any
 import numpy as np
-
 from llm_sdk import Small_LLM_Model  # type: ignore[attr-defined]
 from src.schema import FunctionSpec, load_schema
 from src.vocab import VocabMasks
 
 
 class JSONStateMachine:
-    """Executes deterministic JSON scaffolding with logit injection."""
+    """Executes deterministic JSON structure with logit injection."""
 
     def __init__(
         self,
@@ -39,6 +38,8 @@ class JSONStateMachine:
         return [int(x) for x in data]
 
     def _select_function(self, prompt: str) -> FunctionSpec:
+        """Generates function name in the JSON structure"""
+
         possible_functions: list[str] = list(self.registry.keys())
 
         name_to_tokens_map: dict[str, list[int]] = {}
@@ -54,7 +55,7 @@ class JSONStateMachine:
             "AVAILABLE FUNCTIONS:\n"
             f"{menu_text}\n"
             f"Request: {prompt}\n"
-            "``" + '`json\n{"function": "'
+            "``" + '`json\n{"name": "'
         )
         prompt_tokens = self._normalize_to_list(prompt_text)
 
@@ -95,14 +96,16 @@ class JSONStateMachine:
             possible_functions = list(self.registry.keys())
         return self.registry[possible_functions[0]]
 
-    def _cast_number(self, val_str: str) -> float | int:
+    def _cast_number(self, val_str: str, expected_type: str) -> float | int:
         clean = val_str.strip()
         try:
-            if "." in clean or "e" in clean.lower():
+            if expected_type == "number":
                 return float(clean)
-            return int(clean)
+            # Safe fallback for "integer"
+            # in case LLM outputs something like "2.0"
+            return int(float(clean))
         except ValueError:
-            return 0
+            return 0.0 if expected_type == "number" else 0
 
     def _generate_arg_value(
         self,
@@ -154,14 +157,15 @@ class JSONStateMachine:
                 "and formatting perfectly."
             )
 
+        # Changed "function" to "name" and "arguments" to "parameters"
         mold_text = (
             f"User Request: {prompt}\n"
             "-----------------\n"
             f"Task: {instruction}\n"
             "-----------------\n"
             "Output JSON:\n"
-            "``" + f'`json\n{{"function": "{func_spec.name}", '
-            f'"arguments": {args_so_far_str}{prefix}'
+            "``" + f'`json\n{{"name": "{func_spec.name}", '
+            f'"parameters": {args_so_far_str}{prefix}'
         )
 
         context_tokens = self._normalize_to_list(mold_text)
@@ -210,7 +214,7 @@ class JSONStateMachine:
 
         if expected_type in ("number", "integer"):
             clean_num = raw_string_value.rstrip(",}")
-            return self._cast_number(clean_num)
+            return self._cast_number(clean_num, expected_type)
 
         elif expected_type == "boolean":
             clean_bool = raw_string_value.rstrip(",}").strip().lower()
@@ -240,6 +244,8 @@ class JSONStateMachine:
         return raw_string_value
 
     def generate_call(self, prompt: str) -> dict[str, Any]:
+        """Generates the fucntion and returns name and params"""
+
         spec = self._select_function(prompt)
         args_accumulator: dict[str, Any] = {}
 
@@ -248,13 +254,14 @@ class JSONStateMachine:
                 prompt,
                 spec,
                 arg_name,
-                args_accumulator,
+                args_accumulator
             )
             args_accumulator[arg_name] = val
 
+        # Updated to strict schema compliant keys
         return {
-            "function": spec.name,
-            "arguments": args_accumulator,
+            "name": spec.name,
+            "parameters": args_accumulator,
         }
 
 
@@ -281,7 +288,7 @@ if __name__ == "__main__":
         dt = time.time() - t0
 
         print(f"[SUCCESS]: Call assembled in {dt:.2f} seconds.\n")
-        print(json.dumps(final_call, indent=2))
+        print(json.dumps(final_call, indent=4))
 
     except Exception as err:
         print(f"\n[FATAL ERROR]: {err}")

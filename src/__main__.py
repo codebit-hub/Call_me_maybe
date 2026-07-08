@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import time
 import argparse
 from typing import Union
@@ -76,7 +77,7 @@ def main() -> None:
     model = Small_LLM_Model(device="cpu")
     print("+ LLM has been deployed.")
 
-    # Swap FSM mode based on --OFF flag
+    # Swap FSM mode based on --off flag
 
     generator: Union[UnconstrainedGenerator, JSONStateMachine]
     if args.off:
@@ -100,15 +101,13 @@ def main() -> None:
     final_results = []
 
     for i, test in enumerate(test_cases):
+        # Extract prompt regardless of input JSON structure
         if isinstance(test, dict) and "prompt" in test:
             prompt_test = test["prompt"]
-            test_id = test.get("id", f"test_{i}")
         elif isinstance(test, str):
             prompt_test = test
-            test_id = f"test_{i}"
         else:
             prompt_test = str(test)
-            test_id = f"test_{i}"
 
         print(f"\n[{i + 1}/{len(test_cases)}] Processing: '{prompt_test}'")
 
@@ -119,15 +118,17 @@ def main() -> None:
         dt = time.time() - t0
         print(f"Completed in {dt:.2f} sec")
 
+        # Construct final compliant JSON object
+        # Strictly uses: "prompt", "name", "parameters"
         final_results.append({
-            "id": test_id,
             "prompt": prompt_test,
-            "result": generated_call
+            "name": generated_call.get("name"),
+            "parameters": generated_call.get("parameters", {})
         })
 
     # Exporting the final results ==============================
     with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(final_results, f, indent=2)
+        json.dump(final_results, f, indent=4)
 
     print("\n=== Exporting Results ===")
     print(f"[SUCCESS]: All results are safely written to: \n{output_path}.")
@@ -138,11 +139,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    import sys
-
     try:
         main()
-
     except Exception as err:
         print(f"\n[FATAL ERROR]: {err}")
         sys.exit(1)
