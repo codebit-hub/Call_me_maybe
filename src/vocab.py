@@ -5,9 +5,11 @@ from llm_sdk import Small_LLM_Model  # type: ignore[attr-defined]
 # Censor: Numpy Boolean Mask Generator.
 # When the application initializes, this module will instantiate the LLM,
 # read its vocabulary size ($N = 151,936$), and decode every token ID
-# from 0 to 151,935 into text. It categorizes them into static C-level
-# boolean arrays of size (151,936). If mask[token_id] == True,
-# the LLM is permitted to speak it. If False, our state machine
+# from 0 to 151,935 into text.
+# Then, it categorizes them into static C-level boolean arrays
+# of size (151,936). If mask[token_id] == True,
+# the LLM is permitted to speak it.
+# If False, our state machine
 # will set its logit score to negative infinity -inf.
 
 
@@ -39,6 +41,8 @@ class VocabMasks:
         """Iterates the vocab once to populate binary truth tables"""
 
         # Contains digits and signs: +, -, e, E, float . ,
+        # set() creates a set of unique elements from an iterable
+        # here, iterable is a string
         valid_number_chars: set[str] = set("0123456789+-.eE")
 
         for token_id in range(self.vocab_size):
@@ -60,19 +64,19 @@ class VocabMasks:
                 # Pure whitespace tokens are are to be skipped
                 continue
 
-            # 1. Numeric components
+            # 1. Sets array for numeric components
             if all(c in valid_number_chars for c in s):
                 self.digits[token_id] = True
 
-            # 2. Booleans
+            # 2. Sets array for booleans
             if s in ("true", "false"):
                 self.booleans[token_id] = True
 
-            # 3. Null
+            # 3. Sets array for Null
             if s == "null":
                 self.nulls[token_id] = True
 
-            # 4. Structural JSON delimiters
+            # 4. Sets arrays for structural JSON delimiters
             if s == "{":
                 self.open_brace[token_id] = True
             elif s == "}":
