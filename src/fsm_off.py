@@ -24,8 +24,13 @@ class UnconstrainedGenerator:
         """
         Forces LLM SDK output into a simple Python list.
         """
+        # var text is system_prompt
 
         raw_output: Any = self.llm.encode(text)
+
+        # We dont know what raw_output is: tensor, ndarray, list
+        # we check for method name 'tolist()' need for conversion
+        # if the tolist() method present, we use it for conversion
 
         if hasattr(raw_output, "tolist"):
             data = raw_output.tolist()
@@ -59,21 +64,23 @@ class UnconstrainedGenerator:
         # Added strict instructions for EXACT keys required by subject.
 
         system_prompt = (
-            "You are an API function calling agent.\n"
+            "You are a function-calling router.\n"
+            "Pick the single best function to handle the user request."
             "AVAILABLE FUNCTIONS:\n"
             f"{menu_text}\n"
             "Analyze the user request and output ONLY "
             "a valid JSON object matching the function schema.\n"
             "The JSON object MUST use EXACTLY these two keys: "
-            "'name' (for the function name) "
-            "and 'parameters' (for the arguments).\n"
-            "Do NOT include markdown formatting or explanations.\n\n"
+            "'name': 'chosen function name', "
+            "'parameters': 'chosen arguments'.\n"
+            "Do NOT include markdown formatting or anything else.\n\n"
             f"User Request: {prompt}\n"
             "Output JSON:\n"
             "{"
         )
 
-        # Encodes system prompt into validated tokens
+        # Encodes system prompt into validated tokens and returns
+        # numeric tokens [tensors, ndarrays] normalized into list
 
         context_tokens = self._normalize_to_list(system_prompt)
         generated_value_tokens: list[int] = []
@@ -92,9 +99,16 @@ class UnconstrainedGenerator:
             generated_value_tokens.append(winning_token)
 
             # Check if LLM outputted a closing brace making valid JSON
+            # Early Stopping Circuit Breaker
+            # Instead of waiting for all 150 tokens every single time,
+            # we check the output after every single token is generated
+            # and abort as soon as '}' reached.
+
             current_text = "{" + self.llm.decode(generated_value_tokens)
             try:
                 # if } present, create JSON output file and break
+                # json.loads() converts JSON input into python object
+                # endswith() performs a check for ending "}"
                 if current_text.strip().endswith("}"):
                     json.loads(current_text)
                     break
@@ -103,9 +117,10 @@ class UnconstrainedGenerator:
                 # Keep generatig if it is not valid JSON yet
                 pass
 
-        raw_output = "{" + self.llm.decode(generated_value_tokens)
+        # Once for loop finishes (reached '}', broke, maxed out 150 tokens),
+        # we try parsing LLM's messy output
 
-        # Try parsing LLM's messy output
+        raw_output = "{" + self.llm.decode(generated_value_tokens)
 
         try:
             # Clean up potential markdown formatting

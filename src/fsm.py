@@ -49,6 +49,8 @@ class JSONStateMachine:
 
         # Splitting the backticks ensures the UI markdown parser doesn't break
         context = (
+            "Analyze the request and select the matching function name.\n\n"
+            "AVAILABLE FUNCTIONS:\n"
             f"Available Functions:\n"
             f"{menu_text}\n"
             f"Request: {prompt}\n"
@@ -219,10 +221,11 @@ class JSONStateMachine:
 
     def generate_call(self, prompt: str) -> dict[str, Any]:
         """Executes the complete FSM pipeline for a user prompt."""
-        # Station 1: Resolve Target Function
+
+        # Resolve Target Function
         spec = self._select_function(prompt)
 
-        # Station 2 & 3: Mold and Inject Arguments
+        # Mold and Inject Arguments
         args_accumulator: dict[str, Any] = {}
         for arg_name in spec.parameters.keys():
             val = self._generate_arg_value(
@@ -257,7 +260,7 @@ if __name__ == "__main__":
         dt = time.time() - t0
 
         print(f"[SUCCESS]: Call assembled in {dt:.2f} seconds.\n")
-        print(json.dumps(final_call, indent=2))
+        print(json.dumps(final_call, indent=4))
 
     except Exception as err:
         print(f"\n[FATAL ERROR]: {err}")

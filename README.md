@@ -1,6 +1,7 @@
 *This project has been created as part of the 42 curriculum by dporhomo*
 
-# Constrained Decoding Agent
+# Call Me Maybe
+**Constrained Decoding Agent**
 
 ## Description
 
@@ -20,10 +21,10 @@ If your current root directory is large enouph you can proceed simply by executi
 Otherwise, customize the directory for storing the cache files, as follows:
 
 In the parent directory, create another directory called Cache for storing cache files, as follows:
-  cache
-    huggingface
-    uv
-    pip
+  - cache/
+    - huggingface/
+    - uv/
+    - pip/
 
 Provide the following entries at the very bottom of the shell configuration files, as follows:
 Open the configuration files:
@@ -240,6 +241,7 @@ The core logic resides in `src/fsm.py` and `src/vocab.py`.
 
 * **Logit Censorship:** We chose logit-level masking over post-generation parsing because it eliminates the need for retry-loops, significantly reducing latency.
 * **Pydantic Schema Validation:** By using Pydantic, we ensure that the definitions provided in `functions_definition.json` are strictly validated at load time.
+* **Zero-Shot Prompting:** Small LLMs heavily suffer from "attention dilution" when overloaded with instructions. By relying on the structural constraints of the FSM masks, we successfully minimized the textual prompts, significantly increasing accuracy.
 * **State Machine decoupling:** The `JSONStateMachine` is separated from the `UnconstrainedGenerator` to allow for easy A/B performance testing.
 
 ## Performance Analysis
@@ -252,13 +254,15 @@ The core logic resides in `src/fsm.py` and `src/vocab.py`.
 
 * **Environment Desync:** Initially, `mypy` could not resolve the `pydantic` plugin, which was solved by explicitly managing `dependency-groups` in `pyproject.toml` and ensuring `uv sync --group dev` was executed.
 * **Tokenization Limits:** Preventing infinite loops in the LLM required implementing hard token caps and `current_token_index` limiters in the FSM router.
+* **Tensor vs Array Indexing:** During logit masking, PyTorch Tensors returned by the llm_sdk conflicted with NumPy boolean indexing arrays. We resolved this by explicitly casting np.array(raw_logits) to safely bridge the two data formats without throwing scalar index errors.
+* **LLM "Babbling":** The LLM struggled with complex strings like SQL queries and Regex patterns, occasionally forgetting to output closing quotes. We implemented strict grammar termination delimiters and token generation safety caps to prevent CPU hanging.
 
 ## Testing Strategy
 
 We utilized two JSON-based test suites:
 
-1. `data/input/hardcore_tests.json`: Targeted at adversarial scenarios (scientific notation, complex string escaping, negative numbers).
-2. `data/input/edge_cases.json`: Targeted at structural edge cases (empty strings, nested JSON, malicious SQL injection attempts).
+1. `data/input/edge_complex_tests_new.json`: Targeted at adversarial scenarios (scientific notation, complex string escaping, negative numbers).
+2. `data/input/edge_error_tests.json`: Targeted at structural edge cases (empty strings, nested JSON, malicious SQL injection attempts).
 
 ## Example Usage
 
@@ -283,4 +287,4 @@ We utilized two JSON-based test suites:
 ## Resources
 
 * **Reference:** [Tiny LLMs and Agents on Edge Devices with LiteRT-LM](http://googleusercontent.com/youtube_content/0)
-* **AI Usage:** AI was used primarily for debugging dependency configuration, optimizing the logit masking implementation in `src/vocab.py`, and drafting this documentation.
+* **AI Usage:** Considering the novalty and advancement of the subject, AI was used extensively for analysis, planning, implementation, debugging, testing, validation and optimizing the logit masking implementation in `src/vocab.py`, as well as drafting this documentation.
