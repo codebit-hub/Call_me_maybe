@@ -20,7 +20,14 @@ class JSONStateMachine:
         self.masks = masks
 
     def _normalize_to_list(self, text: str) -> list[int]:
+        """
+        Forces LLM SDK output into a simple Python list.
+        """
         raw_output: Any = self.llm.encode(text)
+
+        # We dont know what raw_output is: tensor, ndarray, list
+        # we check for method name 'tolist()' need for conversion
+        # if the tolist() method present, we use it for conversion
 
         if hasattr(raw_output, "tolist"):
             data = raw_output.tolist()
@@ -34,20 +41,29 @@ class JSONStateMachine:
 
         if isinstance(data[0], list):
             return [int(x) for x in data[0]]
-
         return [int(x) for x in data]
 
     def _select_function(self, prompt: str) -> FunctionSpec:
+        """
+        Selects the correct function name
+        """
+        # valid candidates come from the registry.keys()
         candidates: list[str] = list(self.registry.keys())
+
+        # encode valid function candidates for LLM into
+        # normalized 1D list
         cand_tokens: dict[str, list[int]] = {}
         for func_name in candidates:
             cand_tokens[func_name] = self._normalize_to_list(func_name)
 
+        # building a string menu_text based on function name and specs
+        # from the registry
         menu_text = ""
         for name, spec in self.registry.items():
             menu_text += f"- {name}: {spec.description}\n"
 
-        # Splitting the backticks ensures the UI markdown parser doesn't break
+        # Splitting the backticks ensures the UI markdown
+        # parser doesn't break
         context = (
             "You are a function-calling assistant.\n"
             "Choose exactly one function from the catalog.\n"
@@ -59,13 +75,22 @@ class JSONStateMachine:
             "``" + "`json\n{\"name\": \""
         )
 
+        # encode context into numeral ids
         base_ids: list[int] = self._normalize_to_list(context)
         current_seq: list[int] = []
         depth = 0
 
         # Increased depth cap to 20 to accommodate very long function names
+        # From all func candidates, we choose only correct functions
+        # depth represents the current token index, which less than 20,
+        # prevents hallucinations.
+
         while len(candidates) > 1 and depth < 20:
             # Improved Pythonic set comprehension for allowed tokens
+            # Set is used to keep only unique tokens.
+            # For only allowed function names in candidates with
+            # their depth less than number of tokens assigned to that name
+            # in cand_tokens[name]
             allowed_toks: set[int] = {
                 cand_tokens[name][depth]
                 for name in candidates
@@ -79,17 +104,29 @@ class JSONStateMachine:
             # to prevent PyTorch indexing errors
             logits = np.array(raw_logits)
 
+            # Create a mask for the size of LLM tokens, set it to 0
             mask = np.zeros(self.masks.vocab_size, dtype=bool)
 
+            # For all allowed num tokens in allowed tokenized allowed_toks
+            # set the mask[token id] to True and set the rest to -inf
             for tid in allowed_toks:
                 mask[tid] = True
 
+            # logits at reversed mask are set to -inf
+            # the best logit is chosen from only valid values
             logits[~mask] = -np.inf
             winning_id = int(np.argmax(logits))
 
+            # add the winning id to current_seq and increase depth by 1
+            # ready for next token
             current_seq.append(winning_id)
             depth += 1
 
+            # Select the best candidate 'function name' as str
+            # if depth determines valid length of function name
+            # 0-indexed cand_tokens
+            # if at current depth is winning_id, that function name
+            # gets chosen
             candidates = [
                 name
                 for name in candidates
@@ -100,12 +137,17 @@ class JSONStateMachine:
         if candidates:
             chosen_name = candidates[0]
         else:
+            # fail-save: if there isn't any match,
+            # it chooses the first function name in registry
             chosen_name = list(self.registry.keys())[0]
 
         return self.registry[chosen_name]
 
     def _cast_number(self, val_str: str, expected_type: str) -> float | int:
-        """Safely coerces a generated numeric string into a Python scalar."""
+        """
+        Safely coerces a generated numeric string into a Python scalar.
+        """
+        # If type = "number", return float, else integer
         clean = val_str.strip()
         try:
             if expected_type == "number":
@@ -121,14 +163,21 @@ class JSONStateMachine:
         arg_name: str,
         resolved_args: dict[str, Any],
     ) -> Any:
-        """Generates an argument value constrained by its Pydantic schema."""
+        """
+        Generates constrained argument values for parameters.
+        """
         # 1. Build the exact JSON scaffolding leading up to this parameter
+        # If resolved_args contain value, {"a": 2},
+        # the last char sliced [:-1] is '}', it json.dumps current
+        # resolved_args and if they exist, adds ','
         args_json_partial = json.dumps(resolved_args)[:-1]
         if resolved_args:
             args_json_partial += ", "
 
+        # check the parameter type from FunctionSpec
         expected_type = func_spec.parameters[arg_name].type
 
+        # sets prefix that ends with '"' for str or without '"'if else
         if expected_type == "string":
             prefix = f'"{arg_name}": "'
         else:
@@ -142,15 +191,22 @@ class JSONStateMachine:
             f"\"parameters\": {args_json_partial}{prefix}"
         )
 
+        # encode tokens from the context
         context_ids: list[int] = self._normalize_to_list(context)
         val_toks: list[int] = []
 
-        for _ in range(30):  # Token generation safety cap per argument
+        # LLM to generate the value for a specific parameter
+        # one token at a time, applying strict rules at every single step.
+        # Range cap was 30-50
+
+        for _ in range(50):
+            # Feed LLM tokenized promt and valid tokens so far
             raw_logits = self.llm.get_logits_from_input_ids(
                 context_ids + val_toks
             )
             # Ensure it is explicitly a NumPy array
             # to prevent PyTorch indexing errors
+            # It contains all 151936 possible logits from LLM
             logits = np.array(raw_logits)
 
             # Apply strict type masking
@@ -175,13 +231,24 @@ class JSONStateMachine:
             # Check for natural grammar termination delimiters
             if expected_type == "string":
                 # Handle internal escapes for strings
+                # if it is " then break
                 raw_text = self.llm.decode(val_toks + [winning_id])
+                if '\n' in raw_text:
+                    break
+
                 clean_text = raw_text.replace(
                     '\\\\', '__'
                 ).replace('\\"', '__')
-                if '"' in clean_text:
-                    val_toks.append(winning_id)
-                    break
+                # ^^Instead of breaking on the FIRST quote, wait until the LLM
+                # outputs the closing quote AND
+                # the next JSON structural token (, or })
+                stripped = clean_text.rstrip()
+                if stripped.endswith(',') or stripped.endswith('}'):
+                    # Check if the character right before the comma/brace is
+                    # the closing quote
+                    if stripped[:-1].rstrip().endswith('"'):
+                        val_toks.append(winning_id)
+                        break
             else:
                 if winning_id != 0 and (
                     self.masks.comma[winning_id]
@@ -192,6 +259,7 @@ class JSONStateMachine:
 
             val_toks.append(winning_id)
 
+        # decode the validated tokens from LLM
         raw_val_str = self.llm.decode(val_toks).strip()
 
         if expected_type in ("number", "integer"):
@@ -203,21 +271,25 @@ class JSONStateMachine:
             return clean_bool == "true"
 
         elif expected_type == "string":
-            extracted = ""
-            i = 0
-            while i < len(raw_val_str):
-                if raw_val_str[i] == '\\' and i + 1 < len(raw_val_str):
-                    extracted += raw_val_str[i:i+2]
-                    i += 2
-                elif raw_val_str[i] == '"':
-                    break
-                else:
-                    extracted += raw_val_str[i]
-                    i += 1
+            # Safely extract the inner string from the LLM's raw output
+            clean_val = raw_val_str.rstrip()
+
+            # 1. Remove the trailing comma or brace if the LLM generated one
+            if clean_val.endswith(',') or clean_val.endswith('}'):
+                clean_val = clean_val[:-1].rstrip()
+
+            # 2. Remove the final closing quote
+            if clean_val.endswith('"'):
+                clean_val = clean_val[:-1]
+
+            # 3. Return the exact inner text!
+            # If the LLM successfully escaped everything, json.loads works.
+            # If it forgot to escape internal quotes, json.loads will fail,
+            # we catch the error and just return the raw string as generated
             try:
-                return json.loads(f'"{extracted}"')
+                return json.loads(f'"{clean_val}"')
             except Exception:
-                return extracted.replace('\\"', '"').replace('\\\\', '\\')
+                return clean_val.replace('\\"', '"').replace('\\\\', '\\')
 
         return raw_val_str
 
@@ -234,7 +306,6 @@ class JSONStateMachine:
                 prompt, spec, arg_name, args_accumulator
             )
             args_accumulator[arg_name] = val
-
         return {
             "name": spec.name,
             "parameters": args_accumulator,

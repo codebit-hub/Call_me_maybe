@@ -1,6 +1,6 @@
 # Constrained Decoding Agent
 
-NAME	= constrained_decoder
+NAME	= call_me_maybe
 SHELL	= /bin/bash
 
 # Toolchain
