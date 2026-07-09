@@ -49,8 +49,10 @@ class JSONStateMachine:
 
         # Splitting the backticks ensures the UI markdown parser doesn't break
         context = (
-            "Analyze the request and select the matching function name.\n\n"
-            "AVAILABLE FUNCTIONS:\n"
+            "You are a function-calling assistant.\n"
+            "Choose exactly one function from the catalog.\n"
+            "Return only a JSON object with name and parameters.\n"
+            "Do not include extra text."
             f"Available Functions:\n"
             f"{menu_text}\n"
             f"Request: {prompt}\n"

@@ -64,16 +64,12 @@ class UnconstrainedGenerator:
         # Added strict instructions for EXACT keys required by subject.
 
         system_prompt = (
-            "You are a function-calling router.\n"
-            "Pick the single best function to handle the user request."
+            "You are a function-calling assistant.\n"
+            "Choose exactly one function from the catalog.\n"
+            "Return only a JSON object with name and parameters.\n"
+            "Do not include extra text."
             "AVAILABLE FUNCTIONS:\n"
             f"{menu_text}\n"
-            "Analyze the user request and output ONLY "
-            "a valid JSON object matching the function schema.\n"
-            "The JSON object MUST use EXACTLY these two keys: "
-            "'name': 'chosen function name', "
-            "'parameters': 'chosen arguments'.\n"
-            "Do NOT include markdown formatting or anything else.\n\n"
             f"User Request: {prompt}\n"
             "Output JSON:\n"
             "{"
