@@ -12,6 +12,57 @@ Our solution enforces **deterministic structure** via two techniques:
 1. **Prefix Forcing:** Trapping the LLM within a predefined JSON scaffold, ensuring it only outputs the function name and arguments.
 2. **Logit Injection (Vocabulary Masking):** During token generation, we pre-calculate static boolean masks. These masks effectively "censor" the LLM's entire vocabulary (151,936 tokens) at each step, permitting only tokens that conform to the target JSON schema (digits, structural braces, commas, etc.), while forcing invalid tokens to $-\infty$ logit scores.
 
+Here is the detailed **Feature List** section you can copy and paste directly into your `README.md` file. As requested, I have separated the mandatory and bonus features, highlighting exactly how our project satisfies the specific requirements of the curriculum's bonus chapter.
+
+
+## Feature List
+
+### Mandatory Features
+
+* **Deterministic JSON Generation:**
+Guarantees that the LLM output is strictly valid JSON, conforming perfectly to the required `name` and `parameters` keys.
+
+* **Logit Injection & Vocabulary Masking:**
+Intercepts the LLM's raw probability distributions (logits) at runtime, forcefully reducing the probability of illegal tokens to $-\infty$ based on expected data types (strings, numbers, booleans).
+
+* **Prefix Forcing (Function Routing):**
+Uses prefix tree traversal to physically force the LLM to write only the names of valid functions provided in the schema, eliminating hallucinated function calls.
+
+* **Strict Schema Validation:**
+Utilizes `Pydantic` to ingest and strictly validate the input `functions_definition.json` file, ensuring no malformed schemas can break the application.
+
+* **Automated Batch Processing:** Reads a suite of test prompts from a JSON file, processes them sequentially, and outputs a formatted, machine-readable JSON result file.
+
+### Bonus Features
+
+* **Support for Multiple LLM Models:**
+The architecture has been decoupled from the default Qwen3-0.6B model, allowing users to dynamically swap the underlying Small Language Model engine via CLI flags. By natively passing the target model ID and dynamically adjusting the `VocabMasks` matrix size, the agent seamlessly supports:
+* `--q3`: Use Qwen3 (Qwen3-0.6B) [Default]
+* `--q2.5`: Qwen2.5-0.5B-Instruct (151,936 vocab size)
+* `--q2`: Qwen2-0.5B-Instruct (151,936 vocab size)
+* `--smol`: HuggingFaceTB/SmolLM2-360M-Instruct (49,152 vocab size)
+
+* **Performance Optimizations:**
+Instead of relying on slow Python string manipulation during token generation, the FSM compiles `numpy.ndarray` truth tables (`VocabMasks`) at boot. During generation, it applies lightning-fast NumPy boolean masking (`logits[~mask] = -np.inf`). Additionally, it leverages native Hugging Face cache routing (`HF_HOME`) to prevent redundant downloads and optimize disk I/O.
+
+* **Advanced Error Recovery Mechanisms:**
+The agent is heavily fortified against catastrophic LLM hallucinations:
+* *Token Safety Caps:* Strict loop limits (e.g., 50 tokens for numbers, 80 for strings) prevent infinite generation loops if the LLM gets stuck.
+* *Newline Circuit Breaker:* Instantly aborts generation if the LLM attempts to output raw markdown newlines inside a strictly typed JSON string.
+* *Dynamic Fallbacks:* If an unrecognized grammar sequence breaks the prefix tree during function selection, the router gracefully defaults to the first available function instead of throwing a fatal `IndexError`.
+* *Safe Casting:* Robust `try/except` blocks gracefully coerce stringified numbers (e.g., `"2.0"`) into proper Python `int` or `float` scalars based on schema demands.
+
+
+* **Comprehensive Test Suite:**
+Designed custom, adversarial JSON test files that aggressively test the limits of the FSM parser:
+* `hardcore_tests.json`: Tests scientific notation floats (`1e-10`), negative numbers, and deeply nested quotes (e.g., SQL queries with internal escaped double-quotes).
+* `edge_cases.json`: Tests empty string inputs, ridiculously large integer boundaries, and ambiguous multi-parameter injections to prove the FSM's structural rigidity.
+
+
+* **A/B Testing Baseline (`--off` mode):**
+Includes an unconstrained generation pipeline (`UnconstrainedGenerator`) that disables the FSM, allowing developers to compare raw, prompt-engineered LLM outputs against the constrained decoding agent.
+
+
 ## Instructions
 
 ### Installation & Setup

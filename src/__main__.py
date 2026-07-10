@@ -51,7 +51,13 @@ def main() -> None:
     model_group.add_argument(
         "-q3", "--q3",
         action="store_true",
-        help="Use Qwen3 (Qwen2.5-0.5B-Instruct) [Default]"
+        help="Use Qwen3 (Qwen3-0.6B) [Default]"
+    )
+    model_group.add_argument(
+        "-q2.5", "--q2.5", "-q2_5", "--q2_5",
+        dest="q2_5",
+        action="store_true",
+        help="Use Qwen2.5 (Qwen2.5-0.5B-Instruct)"
     )
     model_group.add_argument(
         "-q2", "--q2",
@@ -99,9 +105,12 @@ def main() -> None:
     elif args.q2:
         target_model_id = "Qwen/Qwen2-0.5B-Instruct"
         target_vocab_size = 151936
+    elif args.q2_5:
+        target_model_id = "Qwen/Qwen2.5-0.5B-Instruct"
+        target_vocab_size = 151936
     else:
         # Default fallback is q3
-        target_model_id = "Qwen/Qwen2.5-0.5B-Instruct"
+        target_model_id = "Qwen/Qwen3-0.6B"
         target_vocab_size = 151936
 
     print(f"+ Deploying model: {target_model_id}")
