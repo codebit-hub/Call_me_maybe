@@ -178,10 +178,16 @@ class JSONStateMachine:
         expected_type = func_spec.parameters[arg_name].type
 
         # sets prefix that ends with '"' for str or without '"'if else
+        # and assigns dynamic token safety caps based on data type
         if expected_type == "string":
             prefix = f'"{arg_name}": "'
+            max_tokens = 100
+        elif expected_type in ("number", "integer"):
+            prefix = f'"{arg_name}": '
+            max_tokens = 50
         else:
             prefix = f'"{arg_name}": '
+            max_tokens = 10
 
         # Retained optimized Zero-Shot prompt to prevent attention dilution
         context = (
@@ -199,7 +205,7 @@ class JSONStateMachine:
         # one token at a time, applying strict rules at every single step.
         # Range cap was 30-50
 
-        for _ in range(50):
+        for _ in range(max_tokens):
             # Feed LLM tokenized promt and valid tokens so far
             raw_logits = self.llm.get_logits_from_input_ids(
                 context_ids + val_toks
@@ -239,7 +245,7 @@ class JSONStateMachine:
                 clean_text = raw_text.replace(
                     '\\\\', '__'
                 ).replace('\\"', '__')
-                # ^^Instead of breaking on the FIRST quote, wait until the LLM
+                # Instead of breaking on the FIRST quote, wait until the LLM
                 # outputs the closing quote AND
                 # the next JSON structural token (, or })
                 stripped = clean_text.rstrip()

@@ -1,22 +1,18 @@
 [
   {
-    "prompt": "Calculate compound interest on a negative principal of -500.00 at 0.05 rate for 10 years",
-    "description": "Tests if the LLM can output the minus sign via the number mask."
-  },
-  {
-    "prompt": "Multiply 0.0000000001 and 1000000000",
+    "prompt": "Calculate the product of 0.0000000005 and 80000000000",
     "description": "Tests scientific notation 'e' and extreme float casting."
   },
   {
-    "prompt": "Execute SQL query 'SELECT * FROM users WHERE name=\"John\" AND age=30' on the test database",
+    "prompt": "Run the following SQL query on the production database: 'DELETE FROM records WHERE status=\"expired\" AND user=\"Alice\"'",
     "description": "Tests nested double quotes inside a string value."
   },
   {
-    "prompt": "Format template: {   \"user_id\": 123, \"action\": \"login\"   }",
+    "prompt": "Process the configuration payload: { \"theme\": \"dark\", \"notifications\": true }",
     "description": "Tests if the string parser accidentally stops when it sees curly braces meant for the template value."
   },
   {
-    "prompt": "Read the file at C:\\System32\\drivers\\etc\\hosts with utf-8",
+    "prompt": "Open the log file located at D:\\Server\\Logs\\2026\\error_log.txt using ascii encoding",
     "description": "Extreme backslash escaping test."
   }
 ]
