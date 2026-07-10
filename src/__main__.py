@@ -45,6 +45,24 @@ def main() -> None:
         action="store_true",
         help="Disable FSM constrained decoding and run raw LLM."
     )
+    # Add mutually exclusive group of flags for calling
+    # multiple LLMS
+    model_group = parser.add_mutually_exclusive_group()
+    model_group.add_argument(
+        "-q3", "--q3",
+        action="store_true",
+        help="Use Qwen3 (Qwen2.5-0.5B-Instruct) [Default]"
+    )
+    model_group.add_argument(
+        "-q2", "--q2",
+        action="store_true",
+        help="Use Qwen2 (Qwen2-0.5B-Instruct)"
+    )
+    model_group.add_argument(
+        "-smol", "--smol",
+        action="store_true",
+        help="Use SmolLM2 (SmolLM2-360M-Instruct)"
+    )
 
     # Run the parser, place extracted data in
     # an argparse.Namespace object
@@ -74,8 +92,22 @@ def main() -> None:
     registry = load_schema(schema_path)
     print(f"+ Loaded {len(registry)} functions from schema.")
 
-    model = Small_LLM_Model(device="cpu")
-    print("+ LLM has been deployed.")
+    # Determine which model and vocab size to use based on flags
+    if args.smol:
+        target_model_id = "HuggingFaceTB/SmolLM2-360M-Instruct"
+        target_vocab_size = 49152
+    elif args.q2:
+        target_model_id = "Qwen/Qwen2-0.5B-Instruct"
+        target_vocab_size = 151936
+    else:
+        # Default fallback is q3
+        target_model_id = "Qwen/Qwen2.5-0.5B-Instruct"
+        target_vocab_size = 151936
+
+    print(f"+ Deploying model: {target_model_id}")
+    # Note: If your llm_sdk uses a different parameter name than 'model_id'
+    # (like 'model_name' or 'path'), adjust the keyword below!
+    model = Small_LLM_Model(device="cpu", model_name=target_model_id)
 
     # Swap FSM mode based on --off flag
 
@@ -84,7 +116,8 @@ def main() -> None:
         print("+ FSM is OFF. Constrained decoding deactivated. Raw LLM only!")
         generator = UnconstrainedGenerator(model, registry)
     else:
-        masks = VocabMasks(model)
+        # masks = VocabMasks(model)
+        masks = VocabMasks(model, vocab_size=target_vocab_size)
         print("+ Vocabulary masks have been aggrigated and set.")
         generator = JSONStateMachine(model, registry, masks)
         print("+ FSM has been deployed and is ready.")
