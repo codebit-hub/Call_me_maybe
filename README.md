@@ -1,5 +1,11 @@
 *This project has been created as part of the 42 curriculum by dporhomo*
 
+![42-school](https://img.shields.io/badge/42-School-000000?style=for-the-badge&logo=42&logoColor=white)
+![Grade](https://img.shields.io/badge/Grade-115%25-FFD700?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.13-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Completion Date](https://img.shields.io/badge/Completed-July%2010%2C%202026-00FF00?style=for-the-badge)
+
+
 # Call Me Maybe
 **Constrained Decoding Agent**
 
