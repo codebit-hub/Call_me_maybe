@@ -88,6 +88,8 @@ def main() -> None:
         sys.exit(1)
 
     # Validates/Creates the output path based on user input
+    # os.path.dirname() extracts dir name only
+    # os.makedirs() creates the output directory if missing
     output_dir = os.path.dirname(output_path)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
@@ -114,12 +116,9 @@ def main() -> None:
         target_vocab_size = 151936
 
     print(f"+ Deploying model: {target_model_id}")
-    # Note: If your llm_sdk uses a different parameter name than 'model_id'
-    # (like 'model_name' or 'path'), adjust the keyword below!
     model = Small_LLM_Model(device="cpu", model_name=target_model_id)
 
     # Swap FSM mode based on --off flag
-
     generator: Union[UnconstrainedGenerator, JSONStateMachine]
     if args.off:
         print("+ FSM is OFF. Constrained decoding deactivated. Raw LLM only!")

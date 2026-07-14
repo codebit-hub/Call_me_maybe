@@ -78,19 +78,29 @@ class JSONStateMachine:
         # encode context into numeral ids
         base_ids: list[int] = self._normalize_to_list(context)
         current_seq: list[int] = []
-        depth = 0
 
         # Increased depth cap to 20 to accommodate very long function names
         # From all func candidates, we choose only correct functions
         # depth represents the current token index, which less than 20,
         # prevents hallucinations.
 
+        depth = 0
         while len(candidates) > 1 and depth < 20:
             # Improved Pythonic set comprehension for allowed tokens
             # Set is used to keep only unique tokens.
             # For only allowed function names in candidates with
             # their depth less than number of tokens assigned to that name
             # in cand_tokens[name]
+
+            # It contains only the valid NEXT tokens across all
+            # remaining candidate functions for the current step (depth)
+            # of generation. Because the LLM generates text one token
+            # at a time, we only want to tell it what it is allowed to
+            # type right now (at the current depth).
+            # cand_tokens[name][depth] simply means:
+            # "Get the list of tokens for this function [name],
+            # and give me the exact token at index [depth]
+            # Project's .odt file provides clear information
             allowed_toks: set[int] = {
                 cand_tokens[name][depth]
                 for name in candidates
@@ -242,6 +252,8 @@ class JSONStateMachine:
                 if '\n' in raw_text:
                     break
 
+                # replace '\\' and '\"' by '__' to clear see
+                # the ending " and the end of the strig
                 clean_text = raw_text.replace(
                     '\\\\', '__'
                 ).replace('\\"', '__')
@@ -303,6 +315,7 @@ class JSONStateMachine:
         """Executes the complete FSM pipeline for a user prompt."""
 
         # Resolve Target Function
+        # It receives FuncSpec object
         spec = self._select_function(prompt)
 
         # Mold and Inject Arguments

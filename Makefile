@@ -1,4 +1,7 @@
 # Constrained Decoding Agent
+# Do not run Makefile commands untill you read
+# README.md Installation instructions and
+# understand where LLM cache files will be stored
 
 NAME	= call_me_maybe
 SHELL	= /bin/bash
